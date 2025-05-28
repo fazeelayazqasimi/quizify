@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -7,7 +8,7 @@ import { QuizResults } from "@/components/quiz/QuizResults";
 import { generateQuiz, type GenerateQuizOutput, type GenerateQuizInput } from "@/ai/flows/generate-quiz";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal } from "lucide-react";
+import { Terminal, Zap } from "lucide-react"; // Added Zap for AI related errors
 
 type QuizQuestionType = GenerateQuizOutput["questions"][0];
 type QuizState = "setup" | "loading" | "active" | "results" | "error";
@@ -18,12 +19,14 @@ export default function QuizPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorTitle, setErrorTitle] = useState<string>("Error");
 
   const { toast } = useToast();
 
   const handleStartQuiz = async (field: string, topic: string) => {
     setQuizState("loading");
     setErrorMessage(null);
+    setErrorTitle("Error");
     try {
       const quizData = await generateQuiz({ field, topic });
       if (quizData && quizData.questions && quizData.questions.length > 0) {
@@ -32,16 +35,33 @@ export default function QuizPage() {
         setScore(0);
         setQuizState("active");
       } else {
-        throw new Error("Failed to generate quiz questions or no questions returned.");
+        // This case might happen if the AI returns an empty questions array successfully.
+        throw new Error("The AI successfully generated a response, but it contained no questions. Please try a different topic or field.");
       }
     } catch (error) {
       console.error("Error generating quiz:", error);
-      const errorMsg = error instanceof Error ? error.message : "An unknown error occurred while generating the quiz.";
+      let errorMsg = "An unknown error occurred while generating the quiz. Please try again.";
+      let specificErrorTitle = "Quiz Generation Failed";
+
+      if (error instanceof Error) {
+        if (error.message.includes("503") || error.message.toLowerCase().includes("overloaded") || error.message.toLowerCase().includes("service unavailable")) {
+          errorMsg = "The AI service is currently busy or unavailable. Please wait a moment and try again.";
+          specificErrorTitle = "AI Service Busy";
+        } else if (error.message.includes("no questions returned") || (quizState === "active" && (!questions || questions.length === 0))) {
+           errorMsg = "The AI couldn't generate questions for this topic, or the generated quiz was empty. Please try a different field or topic.";
+           specificErrorTitle = "No Questions Generated";
+        }
+        else {
+          errorMsg = error.message;
+        }
+      }
+      
       setErrorMessage(errorMsg);
+      setErrorTitle(specificErrorTitle);
       setQuizState("error");
       toast({
         variant: "destructive",
-        title: "Quiz Generation Failed",
+        title: specificErrorTitle,
         description: errorMsg,
       });
     }
@@ -66,6 +86,7 @@ export default function QuizPage() {
     setCurrentQuestionIndex(0);
     setScore(0);
     setErrorMessage(null);
+    setErrorTitle("Error");
   };
 
   const renderContent = () => {
@@ -73,7 +94,7 @@ export default function QuizPage() {
       case "setup":
         return <QuizSetupForm onSubmit={handleStartQuiz} isLoading={false} />;
       case "loading":
-        return <QuizSetupForm onSubmit={handleStartQuiz} isLoading={true} />; // Show form with loading state
+        return <QuizSetupForm onSubmit={handleStartQuiz} isLoading={true} />;
       case "active":
         if (questions.length > 0 && currentQuestionIndex < questions.length) {
           return (
@@ -82,14 +103,16 @@ export default function QuizPage() {
               questionNumber={currentQuestionIndex + 1}
               totalQuestions={questions.length}
               onAnswer={handleAnswerSubmit}
-              isSubmitting={false} // Potentially add submitting state if answer check is async
+              isSubmitting={false}
             />
           );
         }
-        // Fallback or error if questions are not loaded correctly
-        setQuizState("error");
-        setErrorMessage("Error: Questions not available for active state.");
-        return null; // Error state will render the alert
+        // This state should ideally be caught by the error handling in handleStartQuiz
+        // or if questions become unexpectedly empty.
+        setErrorTitle("Question Loading Error");
+        setErrorMessage("Error: Questions are not available for the active quiz. Please try generating a new quiz.");
+        setQuizState("error"); 
+        return <QuizSetupForm onSubmit={handleStartQuiz} isLoading={false} />; // Show setup form to allow retry
       case "results":
         return (
           <QuizResults
@@ -99,10 +122,13 @@ export default function QuizPage() {
           />
         );
       case "error":
-        // ErrorAlert is shown below this switch in the main return
-        return <QuizSetupForm onSubmit={handleStartQuiz} isLoading={false} />; // Allow user to try again
+        // The error alert is shown globally below, so we just return the form
+        // to allow the user to try again.
+        return <QuizSetupForm onSubmit={handleStartQuiz} isLoading={false} />;
       default:
-        return null;
+        // Fallback to setup if state is unknown
+        setQuizState("setup");
+        return <QuizSetupForm onSubmit={handleStartQuiz} isLoading={false} />;
     }
   };
 
@@ -111,8 +137,8 @@ export default function QuizPage() {
       <div className="w-full max-w-2xl">
         {quizState === 'error' && errorMessage && (
             <Alert variant="destructive" className="mb-8 shadow-md">
-              <Terminal className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
+              {errorTitle === "AI Service Busy" || errorTitle === "No Questions Generated" ? <Zap className="h-4 w-4" /> : <Terminal className="h-4 w-4" />}
+              <AlertTitle>{errorTitle}</AlertTitle>
               <AlertDescription>{errorMessage}</AlertDescription>
             </Alert>
         )}
