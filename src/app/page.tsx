@@ -133,17 +133,20 @@ export default function QuizPage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 md:p-12 lg:p-24 bg-background">
-      <div className="w-full max-w-2xl">
-        {quizState === 'error' && errorMessage && (
-            <Alert variant="destructive" className="mb-8 shadow-md">
-              {errorTitle === "AI Service Busy" || errorTitle === "No Questions Generated" ? <Zap className="h-4 w-4" /> : <Terminal className="h-4 w-4" />}
-              <AlertTitle>{errorTitle}</AlertTitle>
-              <AlertDescription>{errorMessage}</AlertDescription>
-            </Alert>
-        )}
-        {renderContent()}
-      </div>
-    </main>
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 md:p-12 lg:p-24 bg-background w-[80vw] mx-auto">
+  {quizState === 'error' && errorMessage && (
+    <Alert variant="destructive" className="mb-8 shadow-md max-w-2xl mx-auto">
+      {errorTitle === "AI Service Busy" || errorTitle === "No Questions Generated" ? (
+        <Zap className="h-4 w-4" />
+      ) : (
+        <Terminal className="h-4 w-4" />
+      )}
+      <AlertTitle>{errorTitle}</AlertTitle>
+      <AlertDescription>{errorMessage}</AlertDescription>
+    </Alert>
+  )}
+  {renderContent()}
+</main>
+
   );
 }

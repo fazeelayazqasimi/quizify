@@ -52,7 +52,7 @@ export function QuizSetupForm({ onSubmit, isLoading }: QuizSetupFormProps) {
             <Lightbulb className="h-8 w-8 mr-2 text-primary" />
             <CardTitle className="text-3xl font-bold">Quizify</CardTitle>
         </div>
-        <CardDescription>Enter a field and topic to generate your quiz!</CardDescription>
+        <CardDescription>This Quiz App Made by Fazeel Ayaz Qasimi</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
